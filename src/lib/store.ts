@@ -27,6 +27,7 @@ function setItem<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error saving to localStorage:`, error);
+    throw new Error(`Failed to save data: ${(error as Error).message}. Storage may be full.`);
   }
 }
 

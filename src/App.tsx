@@ -126,18 +126,8 @@ export default function App() {
         const emp = employees[i];
         const actualDaysWorked = parseFloat(daysWorked[emp.id] || '0') || 0;
         const salary = calculateSalary(emp, actualDaysWorked, maxWorkableDays);
-        const attendance = getAttendanceInfo(actualDaysWorked, maxWorkableDays);
 
-        // Generate PDF
-        const pdfDataUrl = await generatePayslipPDF({
-          employee: emp,
-          settings,
-          month: selectedMonth,
-          year: selectedYear,
-          salary,
-          attendance
-        });
-
+        // Store minimal data - PDF will be regenerated on download
         historyEntries.push({
           employee_id: emp.id,
           name: emp.name,
@@ -146,7 +136,7 @@ export default function App() {
           year: selectedYear,
           actual_days_worked: actualDaysWorked,
           net_pay: salary.netPay,
-          pdf_path: pdfDataUrl
+          pdf_path: '' // PDF regenerated on demand
         });
 
         setProgress({ current: i + 1, total: employees.length });
@@ -160,21 +150,48 @@ export default function App() {
       setActiveTab('history');
     } catch (error) {
       console.error('Error generating payroll:', error);
-      alert('Failed to generate payroll');
+      alert('Failed to generate payroll: ' + (error as Error).message);
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleDownloadPayslip = (entry: PayrollHistory) => {
-    // If it's a data URL, trigger download
-    if (entry.pdf_path.startsWith('data:')) {
+  const handleDownloadPayslip = async (entry: PayrollHistory) => {
+    // Find the employee
+    const emp = employees.find(e => e.id === entry.employee_id);
+    if (!emp) {
+      alert('Employee not found');
+      return;
+    }
+
+    try {
+      // Get calculation method and max workable days
+      const { days: maxWorkableDays } = getMaxWorkableDays(entry.month, entry.year, calculationMethod);
+      
+      // Calculate salary
+      const salary = calculateSalary(emp, entry.actual_days_worked, maxWorkableDays);
+      const attendance = getAttendanceInfo(entry.actual_days_worked, maxWorkableDays);
+
+      // Generate PDF on demand
+      const pdfDataUrl = await generatePayslipPDF({
+        employee: emp,
+        settings,
+        month: entry.month,
+        year: entry.year,
+        salary,
+        attendance
+      });
+
+      // Trigger download
       const link = document.createElement('a');
-      link.href = entry.pdf_path;
+      link.href = pdfDataUrl;
       link.download = `Payslip_${entry.name.replace(/\s+/g, '_')}_${MONTH_NAMES[entry.month - 1]}_${entry.year}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error generating payslip:', error);
+      alert('Failed to generate payslip: ' + (error as Error).message);
     }
   };
 
