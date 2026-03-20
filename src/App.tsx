@@ -184,13 +184,41 @@ export default function App() {
         attendance
       });
 
-      // Trigger download
-      const link = document.createElement('a');
-      link.href = pdfDataUrl;
-      link.download = `Payslip_${entry.name.replace(/\s+/g, '_')}_${MONTH_NAMES[entry.month - 1]}_${entry.year}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Convert data URL to Blob for better mobile compatibility
+      const response = await fetch(pdfDataUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const filename = `Payslip_${entry.name.replace(/\s+/g, '_')}_${MONTH_NAMES[entry.month - 1]}_${entry.year}.pdf`;
+      
+      // Check if mobile device
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // For mobile: Open in new tab and let user save manually
+        const newWindow = window.open(blobUrl, '_blank');
+        if (!newWindow) {
+          // If popup blocked, try alternative method
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.target = '_blank';
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        // Clean up blob URL after a delay
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+      } else {
+        // For desktop: Use standard download
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }
     } catch (error) {
       console.error('Error generating payslip:', error);
       alert('Failed to generate payslip: ' + (error as Error).message);
