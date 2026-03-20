@@ -42,21 +42,17 @@ function numberToWords(num: number): string {
 
   let words = '';
   
-  // Handle crores (7+ digits)
   if (rupees >= 10000000) {
     words += convertChunk(Math.floor(rupees / 10000000)) + ' Crore ';
   }
-  // Handle lakhs (5-6 digits)
   const lakhsPart = rupees % 10000000;
   if (lakhsPart >= 100000) {
     words += convertChunk(Math.floor(lakhsPart / 100000)) + ' Lakh ';
   }
-  // Handle thousands (4 digits)
   const thousandsPart = lakhsPart % 100000;
   if (thousandsPart >= 1000) {
     words += convertChunk(Math.floor(thousandsPart / 1000)) + ' Thousand ';
   }
-  // Handle remainder (1-3 digits)
   const remainder = thousandsPart % 1000;
   if (remainder > 0) {
     words += convertChunk(remainder);
@@ -71,15 +67,13 @@ function numberToWords(num: number): string {
 
 // Truncate text to fit width
 function truncateText(text: string, maxWidth: number, fontSize: number, doc: jsPDF): string {
-  const charWidth = fontSize * 0.5;
-  const maxChars = Math.floor(maxWidth / charWidth);
-  if (text.length <= maxChars) return text;
-  return text.substring(0, maxChars - 3) + '...';
+  if (text.length <= 20) return text;
+  return text.substring(0, 17) + '...';
 }
 
-// Format currency
+// Format currency - use Rs. instead of symbol for compatibility
 function formatCurrency(amount: number): string {
-  return '\u20B9' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return 'Rs. ' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Mask account number
@@ -104,11 +98,11 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   // Colors
   const primaryColor = '#14b8a6';
   const secondaryColor = '#f97316';
-  const darkText = '#0f172a';
+  const darkText = '#1e293b';
   const lightText = '#64748b';
   const borderColor = '#e2e8f0';
 
-  const margin = 12;
+  const margin = 10;
   const pageWidth = 210;
   const contentWidth = pageWidth - (margin * 2);
   let yPos = margin;
@@ -128,13 +122,6 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
     }
   };
 
-  // Helper to draw line
-  const drawLine = (x1: number, y1: number, x2: number, y2: number, color: string = borderColor) => {
-    doc.setDrawColor(color);
-    doc.setLineWidth(0.3);
-    doc.line(x1, y1, x2, y2);
-  };
-
   // Helper to draw filled rect
   const drawRect = (x: number, y: number, w: number, h: number, fillColor: string, borderColorStr?: string) => {
     doc.setFillColor(fillColor);
@@ -142,6 +129,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
       doc.setDrawColor(borderColorStr);
       doc.rect(x, y, w, h, 'FD');
     } else {
+      doc.setDrawColor(borderColor);
       doc.rect(x, y, w, h, 'F');
     }
   };
@@ -151,28 +139,28 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   const monthName = monthNames[data.month - 1] || 'Unknown';
 
   // ==================== HEADER SECTION ====================
-  drawRect(margin, yPos, contentWidth, 20, primaryColor);
+  drawRect(margin, yPos, contentWidth, 22, primaryColor);
   
   // Logo area (left)
   try {
-    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 2, 16, 16);
+    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 3, 16, 16);
   } catch {
-    addText('PD', margin + 8, yPos + 11, { fontSize: 12, color: '#ffffff' });
+    addText('PD', margin + 8, yPos + 12, { fontSize: 12, color: '#ffffff' });
   }
   
   // Company name
-  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 7, { fontSize: 13, color: '#ffffff', font: 'helvetica' });
-  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom, Kolenchery', margin + 22, yPos + 11, { fontSize: 6.5, color: '#e0f2fe' });
-  addText('Ernakulam, Kerala - 682311', margin + 22, yPos + 14.5, { fontSize: 6.5, color: '#e0f2fe' });
+  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 8, { fontSize: 12, color: '#ffffff', font: 'helvetica' });
+  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom, Kolenchery', margin + 22, yPos + 13, { fontSize: 6.5, color: '#e0f2fe' });
+  addText('Ernakulam, Kerala - 682311', margin + 22, yPos + 17, { fontSize: 6.5, color: '#e0f2fe' });
   
   // Payslip title and date (right)
-  addText('PAYSLIP', pageWidth - margin - 3, yPos + 7, { fontSize: 14, color: '#ffffff', align: 'right', font: 'helvetica' });
-  addText(`${monthName} ${data.year}`, pageWidth - margin - 3, yPos + 13, { fontSize: 10, color: '#e0f2fe', align: 'right' });
+  addText('PAYSLIP', pageWidth - margin - 3, yPos + 8, { fontSize: 14, color: '#ffffff', align: 'right', font: 'helvetica' });
+  addText(monthName + ' ' + data.year, pageWidth - margin - 3, yPos + 15, { fontSize: 10, color: '#e0f2fe', align: 'right' });
   
-  yPos += 22;
+  yPos += 24;
   
-  // GST and contact info
-  addText('GST: 32BJZPJ4929C1ZO  |  Phone: +91-7593844590, +91-7593844592  |  www.pearldental.care', margin, yPos, { fontSize: 7, color: lightText });
+  // GST and contact info bar
+  addText('GST: 32BJZPJ4929C1ZO   |   Phone: +91-7593844590, +91-7593844592   |   www.pearldental.care', margin + 2, yPos, { fontSize: 7, color: lightText });
   yPos += 6;
 
   // ==================== EMPLOYEE INFO SECTION ====================
@@ -180,13 +168,13 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   
   // Employee name and designation
   addText(data.employee.name.toUpperCase(), margin + 4, yPos + 7, { fontSize: 12, color: primaryColor, font: 'helvetica' });
-  addText(data.employee.designation || '', margin + 4, yPos + 12, { fontSize: 9, color: lightText });
+  addText(data.employee.designation || '', margin + 4, yPos + 13, { fontSize: 9, color: lightText });
   
-  // Left column labels
+  // Column positions
   const col1X = margin + 4;
-  const col2X = margin + 65;
-  const col3X = margin + 125;
-  let infoY = yPos + 18;
+  const col2X = margin + 62;
+  const col3X = margin + 120;
+  let infoY = yPos + 19;
   
   const empNo = displayValue(data.employee.emp_no);
   const department = displayValue(data.employee.department);
@@ -245,7 +233,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   drawRect(margin, yPos, contentWidth, 11, '#fff7ed', borderColor);
   
   const summaryItems = [
-    { label: 'Period', value: `${monthName} ${data.year}` },
+    { label: 'Period', value: monthName + ' ' + data.year },
     { label: 'Working Days', value: data.attendance.maxWorkableDays.toString() },
     { label: 'Present', value: data.attendance.actualDaysWorked.toString() },
     { label: 'LOP', value: data.attendance.lossOfPayDays.toString() }
@@ -253,7 +241,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   
   const summaryWidth = contentWidth / 4;
   summaryItems.forEach((item, index) => {
-    const itemX = margin + (index * summaryWidth) + 3;
+    const itemX = margin + (index * summaryWidth) + 4;
     addText(item.label + ':', itemX, yPos + 4, { fontSize: 7, color: lightText });
     addText(item.value, itemX, yPos + 8.5, { fontSize: 9, color: darkText });
   });
@@ -261,19 +249,23 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   yPos += 13;
 
   // ==================== EARNINGS & DEDUCTIONS TABLE ====================
-  const colWidth = contentWidth / 2;
-  const rowHeight = 6.5;
-  const labelMaxWidth = 55;
-  const valueWidth = 35;
+  const colWidth = (contentWidth - 2) / 2; // 2mm gap in middle
+  const rowHeight = 7;
+  const centerX = margin + colWidth + 1; // Center divider line
   
   // Headers
-  drawRect(margin, yPos, colWidth - 1, rowHeight, primaryColor);
-  drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, secondaryColor);
+  drawRect(margin, yPos, colWidth, rowHeight, primaryColor);
+  drawRect(centerX + 1, yPos, colWidth, rowHeight, secondaryColor);
   
-  addText('EARNINGS', margin + colWidth / 2, yPos + 4.5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
-  addText('DEDUCTIONS', margin + colWidth + colWidth / 2, yPos + 4.5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
+  addText('EARNINGS', margin + colWidth / 2, yPos + 5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
+  addText('DEDUCTIONS', centerX + 1 + colWidth / 2, yPos + 5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
   
   yPos += rowHeight;
+  
+  // Vertical divider line
+  doc.setDrawColor(borderColor);
+  doc.setLineWidth(0.5);
+  doc.line(centerX, yPos - rowHeight, centerX, yPos + (rowHeight * 8));
   
   // Calculate max rows needed
   const maxRows = Math.max(data.salary.earnings.length, data.salary.deductions.length);
@@ -284,60 +276,62 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
     
     // Earnings row
     if (i < data.salary.earnings.length) {
-      drawRect(margin, yPos, colWidth - 1, rowHeight, bgColor);
-      const earnName = truncateText(data.salary.earnings[i].name, labelMaxWidth, 8, doc);
-      addText(earnName, margin + 3, yPos + 4.5, { fontSize: 8, color: darkText });
-      addText(formatCurrency(data.salary.earnings[i].amount), margin + colWidth - 4, yPos + 4.5, { fontSize: 8, color: darkText, align: 'right' });
+      drawRect(margin, yPos, colWidth, rowHeight, bgColor);
+      const earnName = truncateText(data.salary.earnings[i].name, 50, 8, doc);
+      addText(earnName, margin + 3, yPos + 5, { fontSize: 8, color: darkText });
+      addText(formatCurrency(data.salary.earnings[i].amount), margin + colWidth - 3, yPos + 5, { fontSize: 8, color: darkText, align: 'right' });
     } else {
-      drawRect(margin, yPos, colWidth - 1, rowHeight, bgColor);
+      drawRect(margin, yPos, colWidth, rowHeight, bgColor);
     }
     
     // Deductions row
     if (i < data.salary.deductions.length) {
-      drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, bgColor);
-      const dedName = truncateText(data.salary.deductions[i].name, labelMaxWidth, 8, doc);
-      addText(dedName, margin + colWidth + 3, yPos + 4.5, { fontSize: 8, color: darkText });
-      addText(formatCurrency(data.salary.deductions[i].amount), margin + contentWidth - 4, yPos + 4.5, { fontSize: 8, color: darkText, align: 'right' });
+      drawRect(centerX + 1, yPos, colWidth, rowHeight, bgColor);
+      const dedName = truncateText(data.salary.deductions[i].name, 50, 8, doc);
+      addText(dedName, centerX + 4, yPos + 5, { fontSize: 8, color: darkText });
+      addText(formatCurrency(data.salary.deductions[i].amount), centerX + colWidth - 3, yPos + 5, { fontSize: 8, color: darkText, align: 'right' });
     } else {
-      drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, bgColor);
+      drawRect(centerX + 1, yPos, colWidth, rowHeight, bgColor);
     }
     
     yPos += rowHeight;
   }
   
   // Totals row
-  drawRect(margin, yPos, colWidth - 1, rowHeight, '#e0f2fe');
-  drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, '#fee2e2');
+  drawRect(margin, yPos, colWidth, rowHeight, '#e0f2fe');
+  drawRect(centerX + 1, yPos, colWidth, rowHeight, '#fee2e2');
   
-  addText('Total Earnings', margin + 3, yPos + 4.5, { fontSize: 8, color: primaryColor, font: 'helvetica' });
-  addText(formatCurrency(data.salary.totalEarnings), margin + colWidth - 4, yPos + 4.5, { fontSize: 8, color: primaryColor, align: 'right', font: 'helvetica' });
+  addText('Total Earnings', margin + 3, yPos + 5, { fontSize: 8, color: primaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalEarnings), margin + colWidth - 3, yPos + 5, { fontSize: 8, color: primaryColor, align: 'right', font: 'helvetica' });
 
-  addText('Total Deductions', margin + colWidth + 3, yPos + 4.5, { fontSize: 8, color: secondaryColor, font: 'helvetica' });
-  addText(formatCurrency(data.salary.totalDeductions), margin + contentWidth - 4, yPos + 4.5, { fontSize: 8, color: secondaryColor, align: 'right', font: 'helvetica' });
+  addText('Total Deductions', centerX + 4, yPos + 5, { fontSize: 8, color: secondaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalDeductions), centerX + colWidth - 3, yPos + 5, { fontSize: 8, color: secondaryColor, align: 'right', font: 'helvetica' });
   
-  yPos += rowHeight + 3;
+  yPos += rowHeight + 4;
 
   // ==================== NET PAY SECTION ====================
-  const netPayHeight = 18;
-  drawRect(margin, yPos, contentWidth, netPayHeight, '#f0fdfa', borderColor);
+  const netPayHeight = 20;
+  drawRect(margin, yPos, contentWidth, netPayHeight, '#f0fdfa', primaryColor);
   
-  addText('NET SALARY PAYABLE', margin + 4, yPos + 5, { fontSize: 8, color: lightText });
-  addText(formatCurrency(data.salary.netPay), pageWidth - margin - 4, yPos + 7, { fontSize: 14, color: primaryColor, align: 'right', font: 'helvetica' });
+  addText('NET SALARY PAYABLE', margin + 5, yPos + 6, { fontSize: 9, color: lightText });
+  addText(formatCurrency(data.salary.netPay), pageWidth - margin - 5, yPos + 8, { fontSize: 16, color: primaryColor, align: 'right', font: 'helvetica' });
 
   const amountWords = numberToWords(data.salary.netPay);
-  addText(amountWords, margin + 4, yPos + 13, { fontSize: 8, color: lightText });
+  addText(amountWords, margin + 5, yPos + 15, { fontSize: 9, color: darkText });
   
   yPos += netPayHeight + 6;
 
   // ==================== FOOTER ====================
   const footerY = 275;
   
-  drawLine(margin, footerY - 2, pageWidth - margin, footerY - 2, primaryColor);
+  doc.setDrawColor(primaryColor);
+  doc.setLineWidth(0.5);
+  doc.line(margin, footerY - 2, pageWidth - margin, footerY - 2);
   
   addText('This is a computer generated payslip and does not require signature.', pageWidth / 2, footerY + 2, { fontSize: 7, color: lightText, align: 'center' });
   
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  addText(`Generated on: ${today}  |  www.pearldental.care`, pageWidth / 2, footerY + 6, { fontSize: 7, color: lightText, align: 'center' });
+  addText('Generated on: ' + today + '   |   www.pearldental.care', pageWidth / 2, footerY + 7, { fontSize: 7, color: lightText, align: 'center' });
 
   return doc.output('dataurlstring');
 }
@@ -348,7 +342,7 @@ export async function downloadPayslip(data: PayslipData, filename?: string): Pro
   
   const link = document.createElement('a');
   link.href = pdfDataUrl;
-  link.download = filename || `Payslip_${data.employee.name}_${data.month}_${data.year}.pdf`;
+  link.download = filename || 'Payslip_' + data.employee.name + '_' + data.month + '_' + data.year + '.pdf';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
