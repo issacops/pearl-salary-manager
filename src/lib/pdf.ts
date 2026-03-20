@@ -1,292 +1,342 @@
-// Client-side Payslip PDF Generator
-// Uses jsPDF for generating professional payslip PDFs
-
 import { jsPDF } from 'jspdf';
 import { Employee, Settings } from '@/types';
-import { SalaryBreakdown, AttendanceInfo, numberToWords, MONTH_NAMES } from './payroll';
 
-interface PayslipData {
+export interface PayslipData {
   employee: Employee;
   settings: Settings;
   month: number;
   year: number;
-  salary: SalaryBreakdown;
-  attendance: AttendanceInfo;
+  salary: {
+    earnings: Array<{ name: string; amount: number }>;
+    deductions: Array<{ name: string; amount: number }>;
+    totalEarnings: number;
+    totalDeductions: number;
+    netPay: number;
+    grossSalary?: number;
+  };
+  attendance: {
+    actualDaysWorked: number;
+    maxWorkableDays: number;
+    lossOfPayDays: number;
+  };
+}
+
+// Indian Number to Words Conversion
+function numberToWords(num: number): string {
+  const single = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const double = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const places = ['', 'Thousand', 'Lakh', 'Crore'];
+
+  function convert(n: number, index: number): string {
+    if (n === 0) return '';
+    if (n < 10) return single[n] + ' ';
+    if (n < 20) return double[n - 10] + ' ';
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + single[n % 10] : '') + ' ';
+    return single[Math.floor(n / 100)] + ' Hundred ' + (n % 100 !== 0 ? 'and ' + convert(n % 100, 0) : '');
+  }
+
+  function getAllWords(n: number): string {
+    if (n === 0) return 'Zero';
+    let words = '';
+    let placeIndex = 0;
+    while (n > 0) {
+      const chunk = n % 100;
+      if (chunk !== 0) {
+        const chunkWords = convert(chunk, placeIndex);
+        words = chunkWords + places[placeIndex] + ' ' + words;
+      }
+      n = Math.floor(n / 100);
+      placeIndex++;
+    }
+    return words.trim();
+  }
+
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+  let result = 'Rupees ' + getAllWords(rupees);
+  if (paise > 0) {
+    result += ' and ' + getAllWords(paise) + ' Paise';
+  }
+  return result + ' Only';
+}
+
+// Format currency
+function formatCurrency(amount: number): string {
+  return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Mask account number
+function maskAccountNumber(account: string): string {
+  if (!account || account.length < 4) return account || 'N/A';
+  return '****' + account.slice(-4);
+}
+
+// Hide if empty
+function displayValue(value: string): string {
+  if (!value || value === '-' || value === '') return '';
+  return value;
 }
 
 export async function generatePayslipPDF(data: PayslipData): Promise<string> {
-  const { employee, settings, month, year, salary, attendance } = data;
-  const monthName = MONTH_NAMES[month - 1];
-
-  // Create PDF with custom fonts and styling
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4'
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 15;
-  const contentWidth = pageWidth - (margin * 2);
-
   // Colors
-  const primaryColor: [number, number, number] = [79, 70, 229]; // Indigo-600
-  const darkColor: [number, number, number] = [30, 41, 59]; // Slate-800
-  const grayColor: [number, number, number] = [100, 116, 139]; // Slate-500
-  const lightGray: [number, number, number] = [241, 245, 249]; // Slate-100
+  const primaryColor = '#14b8a6'; // Teal from logo
+  const secondaryColor = '#f97316'; // Orange from logo
+  const darkText = '#0f172a';
+  const lightText = '#64748b';
+  const borderColor = '#e2e8f0';
 
+  const margin = 10;
+  const pageWidth = 210;
+  const contentWidth = pageWidth - (margin * 2);
   let yPos = margin;
 
-  // Header
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 35, 'F');
-
-  // Company Name
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PAYSLIP', margin, yPos + 8);
-
-  // Month/Year
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${monthName.substring(0, 3).toUpperCase()} ${year}`, pageWidth - margin, yPos + 8, { align: 'right' });
-
-  yPos += 15;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(settings.company_name || 'PEARL DENTAL SOLUTIONS', margin, yPos);
-  yPos += 6;
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(settings.address_line1 || '', margin, yPos);
-  yPos += 4;
-  doc.text(settings.address_line2 || '', margin, yPos);
-  yPos += 4;
-  doc.text(settings.city_state_zip || '', margin, yPos);
-
-  yPos += 15;
-
-  // Employee Name Box
-  doc.setFillColor(...lightGray);
-  doc.rect(margin, yPos, contentWidth, 10, 'F');
-  doc.setFillColor(...primaryColor);
-  doc.rect(margin, yPos, 4, 10, 'F');
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(employee.name.toUpperCase(), margin + 8, yPos + 7);
-  yPos += 15;
-
-  // Employee Details Grid
-  const colWidth = contentWidth / 4;
-  const rowHeight = 12;
-
-  const details = [
-    { label: 'Emp No', value: employee.emp_no || '-' },
-    { label: 'Date Joined', value: formatDate(employee.date_joined) },
-    { label: 'Department', value: employee.department || '-' },
-    { label: 'Sub Department', value: employee.sub_department || '-' },
-    { label: 'Designation', value: employee.designation },
-    { label: 'Payment Mode', value: employee.payment_mode || 'Bank Transfer' },
-    { label: 'Bank', value: employee.bank_name || '-' },
-    { label: 'Bank IFSC', value: employee.bank_ifsc || '-' },
-    { label: 'Bank Account', value: employee.bank_account || '-' },
-    { label: 'PAN', value: employee.pan || '-' },
-    { label: 'UAN', value: employee.uan || '-' },
-    { label: 'PF Number', value: employee.pf_number || 'NA' }
-  ];
-
-  doc.setFillColor(...lightGray);
-  doc.rect(margin, yPos, contentWidth, rowHeight * 3, 'F');
-
-  details.forEach((detail, index) => {
-    const col = index % 4;
-    const row = Math.floor(index / 4);
-    const x = margin + (col * colWidth) + 3;
-    const y = yPos + (row * rowHeight) + 4;
-
-    doc.setTextColor(...grayColor);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text(detail.label.toUpperCase(), x, y);
-
-    doc.setTextColor(...darkColor);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text(detail.value, x, y + 4);
-  });
-
-  yPos += rowHeight * 3 + 10;
-
-  // Section Title
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.line(margin, yPos, margin + 40, yPos);
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('SALARY DETAILS', margin, yPos + 4);
-  yPos += 10;
-
-  // Attendance Grid
-  doc.setFillColor(...lightGray);
-  doc.rect(margin, yPos, contentWidth, rowHeight, 'F');
-
-  const attendanceData = [
-    { label: 'Actual Payable Days', value: attendance.actualDaysWorked.toFixed(1) },
-    { label: 'Total Working Days', value: attendance.maxWorkableDays.toFixed(1) },
-    { label: 'Loss Of Pay Days', value: attendance.lossOfPayDays.toFixed(1) },
-    { label: 'Days Payable', value: attendance.actualDaysWorked.toString() }
-  ];
-
-  attendanceData.forEach((item, index) => {
-    const x = margin + (index * (contentWidth / 4)) + 5;
-    doc.setTextColor(...grayColor);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text(item.label.toUpperCase(), x, yPos + 4);
-    doc.setTextColor(...darkColor);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text(item.value, x, yPos + 10);
-  });
-
-  yPos += rowHeight + 10;
-
-  // Salary Table - Two columns side by side
-  const col1X = margin;
-  const col2X = margin + (contentWidth / 2) + 5;
-  const tableWidth = (contentWidth / 2) - 7;
-
-  // Earnings Column
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('EARNINGS', col1X, yPos);
-  doc.text('DEDUCTIONS', col2X, yPos);
-  yPos += 5;
-
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(col1X, yPos, col1X + tableWidth, yPos);
-  doc.line(col2X, yPos, col2X + tableWidth, yPos);
-  yPos += 5;
-
-  // Calculate max rows
-  const maxRows = Math.max(salary.earnings.length, salary.deductions.length);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-
-  for (let i = 0; i < maxRows; i++) {
-    const earning = salary.earnings[i];
-    const deduction = salary.deductions[i];
-
-    if (earning) {
-      doc.setTextColor(...darkColor);
-      doc.text(earning.name, col1X, yPos);
-      doc.text(`₹${earning.amount.toFixed(2)}`, col1X + tableWidth - 25, yPos, { align: 'right' });
+  // Helper to add text
+  const addText = (text: string, x: number, y: number, options?: { fontSize?: number; font?: string; color?: string; align?: 'left' | 'center' | 'right' }) => {
+    const fontSize = options?.fontSize || 10;
+    const color = options?.color || darkText;
+    doc.setFontSize(fontSize);
+    doc.setTextColor(color);
+    if (options?.align === 'center') {
+      doc.text(text, x, y, { align: 'center' });
+    } else if (options?.align === 'right') {
+      doc.text(text, x, y, { align: 'right' });
+    } else {
+      doc.text(text, x, y);
     }
+  };
 
-    if (deduction) {
-      doc.setTextColor(...darkColor);
-      doc.text(deduction.name, col2X, yPos);
-      doc.text(`₹${deduction.amount.toFixed(2)}`, col2X + tableWidth - 25, yPos, { align: 'right' });
+  // Helper to draw line
+  const drawLine = (x1: number, y1: number, x2: number, y2: number, color: string = borderColor) => {
+    doc.setDrawColor(color);
+    doc.setLineWidth(0.5);
+    doc.line(x1, y1, x2, y2);
+  };
+
+  // Helper to draw filled rect
+  const drawRect = (x: number, y: number, w: number, h: number, fillColor: string, borderColorStr?: string) => {
+    doc.setFillColor(fillColor);
+    if (borderColorStr) {
+      doc.setDrawColor(borderColorStr);
+      doc.rect(x, y, w, h, 'FD');
+    } else {
+      doc.rect(x, y, w, h, 'F');
     }
+  };
 
-    yPos += 6;
-  }
+  // Get month name
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthName = monthNames[data.month - 1] || 'Unknown';
 
-  // Totals
-  yPos += 2;
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.line(col1X, yPos, col1X + tableWidth, yPos);
-  doc.line(col2X, yPos, col2X + tableWidth, yPos);
-  yPos += 6;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('Total Earnings (A)', col1X, yPos);
-  doc.text(`₹${salary.totalEarnings.toFixed(2)}`, col1X + tableWidth - 25, yPos, { align: 'right' });
-
-  doc.text('Total Deductions (C)', col2X, yPos);
-  doc.text(`₹${salary.totalDeductions.toFixed(2)}`, col2X + tableWidth - 25, yPos, { align: 'right' });
-
-  yPos += 20;
-
-  // Net Pay Box
-  doc.setFillColor(...lightGray);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, yPos, contentWidth, 25, 2, 2, 'FD');
-
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Net Salary Payable ( A - C )', margin + 10, yPos + 10);
-
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`₹${salary.netPay.toFixed(2)}`, pageWidth - margin - 10, yPos + 14, { align: 'right' });
-
-  yPos += 18;
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Net Salary in words:', margin + 10, yPos);
-
-  doc.setTextColor(...darkColor);
-  doc.setFontSize(9);
-  doc.text(`${numberToWords(salary.netPay)} Rupees Only`, margin + 10, yPos + 6);
-
-  yPos += 30;
-
-  // Signatures
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-
-  // Employer signature
-  doc.line(margin, yPos + 15, margin + 50, yPos + 15);
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(8);
-  doc.text('Employer Signature', margin + 15, yPos + 20);
-
-  // Employee signature
-  doc.line(pageWidth - margin - 50, yPos + 15, pageWidth - margin, yPos + 15);
-  doc.text('Employee Signature', pageWidth - margin - 40, yPos + 20);
-
-  yPos += 35;
-
-  // Footer
-  doc.setDrawColor(226, 232, 240);
-  doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 5;
-
-  doc.setTextColor(...grayColor);
-  doc.setFontSize(7);
-  doc.text('**Note : All amounts displayed in this payslip are in INR', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 3;
-  doc.text('*This is a system generated salary slip.', pageWidth / 2, yPos, { align: 'center' });
-
-  // Return as base64 data URL
-  return doc.output('dataurlstring');
-}
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-';
+  // ==================== HEADER SECTION ====================
+  // Teal header background
+  drawRect(margin, yPos, contentWidth, 22, primaryColor);
+  
+  // Logo area (left)
   try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 3, 16, 16);
   } catch {
-    return '-';
+    // If logo fails, show text placeholder
+    addText('PD', margin + 8, yPos + 12, { fontSize: 12, color: '#ffffff' });
   }
+  
+  // Company name
+  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 8, { fontSize: 14, color: '#ffffff', font: 'helvetica' });
+  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom', margin + 22, yPos + 13, { fontSize: 7, color: '#e0f2fe' });
+  addText('Kolenchery, Ernakulam, Kerala - 682311', margin + 22, yPos + 17, { fontSize: 7, color: '#e0f2fe' });
+  
+  // Payslip title and date (right)
+  addText('PAYSLIP', pageWidth - margin - 5, yPos + 8, { fontSize: 16, color: '#ffffff', align: 'right', font: 'helvetica' });
+  addText(`${data.month} ${data.year}`, pageWidth - margin - 5, yPos + 15, { fontSize: 11, color: '#e0f2fe', align: 'right' });
+  
+  yPos += 24;
+  
+  // GST and contact info
+  addText(`GST: 32BJZPJ4929C1ZO | Phone: +91-7593844590, +91-7593844592`, margin, yPos, { fontSize: 8, color: lightText });
+  yPos += 5;
+
+  // ==================== EMPLOYEE INFO SECTION ====================
+  yPos += 3;
+  drawRect(margin, yPos, contentWidth, 30, '#f0fdfa', borderColor);
+  
+  // Employee name and designation
+  addText(data.employee.name.toUpperCase(), margin + 5, yPos + 8, { fontSize: 13, color: primaryColor, font: 'helvetica' });
+  addText(data.employee.designation, margin + 5, yPos + 13, { fontSize: 10, color: lightText });
+  
+  // Employee details grid
+  let col1X = margin + 5;
+  let col2X = margin + 70;
+  let col3X = margin + 135;
+  let infoY = yPos + 20;
+  
+  // Row 1
+  const empNo = data.employee.emp_no || '';
+  const department = data.employee.department || '';
+  const dateJoined = data.employee.date_joined || '';
+  const paymentMode = data.employee.payment_mode || '';
+  const bankName = data.employee.bank_name || '';
+  const bankAccount = data.employee.bank_account || '';
+  const pan = data.employee.pan || '';
+  const uan = data.employee.uan || '';
+  
+  if (displayValue(empNo)) {
+    addText('Emp ID:', col1X, infoY, { fontSize: 8, color: lightText });
+    addText(empNo, col1X + 18, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  if (displayValue(department)) {
+    addText('Department:', col2X, infoY, { fontSize: 8, color: lightText });
+    addText(department, col2X + 25, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  if (displayValue(dateJoined)) {
+    addText('Joined:', col3X, infoY, { fontSize: 8, color: lightText });
+    addText(dateJoined, col3X + 18, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  infoY += 5;
+  
+  // Row 2
+  if (displayValue(paymentMode)) {
+    addText('Payment:', col1X, infoY, { fontSize: 8, color: lightText });
+    addText(paymentMode, col1X + 18, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  if (displayValue(bankName)) {
+    addText('Bank:', col2X, infoY, { fontSize: 8, color: lightText });
+    addText(bankName, col2X + 18, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  if (displayValue(bankAccount)) {
+    addText('A/C:', col3X, infoY, { fontSize: 8, color: lightText });
+    addText(maskAccountNumber(bankAccount), col3X + 12, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  infoY += 5;
+  
+  // Row 3
+  if (displayValue(pan)) {
+    addText('PAN:', col1X, infoY, { fontSize: 8, color: lightText });
+    addText(pan, col1X + 12, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  if (displayValue(uan)) {
+    addText('UAN:', col2X, infoY, { fontSize: 8, color: lightText });
+    addText(uan, col2X + 15, infoY, { fontSize: 9, color: darkText });
+  }
+  
+  yPos += 33;
+
+  // ==================== ATTENDANCE & PAY SUMMARY ====================
+  drawRect(margin, yPos, contentWidth, 12, '#fff7ed', borderColor);
+  
+  const summaryItems = [
+    { label: 'Period:', value: `${monthName} ${data.year}` },
+    { label: 'Working Days:', value: data.attendance.maxWorkableDays.toString() },
+    { label: 'Present:', value: data.attendance.actualDaysWorked.toString() },
+    { label: 'LOP:', value: data.attendance.lossOfPayDays.toString() }
+  ];
+  
+  let summaryX = margin + 5;
+  summaryItems.forEach((item, index) => {
+    if (index > 0) summaryX += 40;
+    addText(item.label, summaryX, yPos + 5, { fontSize: 8, color: lightText });
+    addText(item.value, summaryX, yPos + 10, { fontSize: 9, color: darkText });
+  });
+  
+  yPos += 14;
+
+  // ==================== EARNINGS & DEDUCTIONS ====================
+  const tableStartY = yPos;
+  const colWidth = contentWidth / 2;
+  const rowHeight = 7;
+  
+  // Headers
+  drawRect(margin, tableStartY, colWidth - 2, rowHeight, primaryColor);
+  drawRect(margin + colWidth, tableStartY, colWidth - 2, rowHeight, primaryColor);
+  
+  addText('EARNINGS', margin + colWidth / 2 - 1, tableStartY + 5, { fontSize: 10, color: '#ffffff', align: 'center', font: 'helvetica' });
+  addText('DEDUCTIONS', margin + colWidth + colWidth / 2 - 1, tableStartY + 5, { fontSize: 10, color: '#ffffff', align: 'center', font: 'helvetica' });
+  
+  yPos = tableStartY + rowHeight;
+  
+  // Calculate max rows needed
+  const maxRows = Math.max(data.salary.earnings.length, data.salary.deductions.length);
+  
+  for (let i = 0; i < maxRows; i++) {
+    const isEven = i % 2 === 0;
+    const bgColor = isEven ? '#ffffff' : '#f8fafc';
+    
+    // Earnings row
+    if (data.salary.earnings[i]) {
+      drawRect(margin, yPos, colWidth - 2, rowHeight, bgColor);
+      addText(data.salary.earnings[i].name, margin + 3, yPos + 5, { fontSize: 9, color: darkText });
+      addText(formatCurrency(data.salary.earnings[i].amount), margin + colWidth - 5, yPos + 5, { fontSize: 9, color: darkText, align: 'right' });
+    } else {
+      drawRect(margin, yPos, colWidth - 2, rowHeight, bgColor);
+    }
+    
+    // Deductions row
+    if (data.salary.deductions[i]) {
+      drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, bgColor);
+      addText(data.salary.deductions[i].name, margin + colWidth + 3, yPos + 5, { fontSize: 9, color: darkText });
+      addText(formatCurrency(data.salary.deductions[i].amount), margin + contentWidth - 5, yPos + 5, { fontSize: 9, color: darkText, align: 'right' });
+    } else {
+      drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, bgColor);
+    }
+    
+    yPos += rowHeight;
+  }
+  
+  // Totals row
+  drawRect(margin, yPos, colWidth - 2, rowHeight, '#e0f2fe');
+  drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, '#fee2e2');
+  
+  addText('Total Earnings', margin + 3, yPos + 5, { fontSize: 9, color: primaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalEarnings), margin + colWidth - 5, yPos + 5, { fontSize: 9, color: primaryColor, align: 'right', font: 'helvetica' });
+
+  addText('Total Deductions', margin + colWidth + 3, yPos + 5, { fontSize: 9, color: secondaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalDeductions), margin + contentWidth - 5, yPos + 5, { fontSize: 9, color: secondaryColor, align: 'right', font: 'helvetica' });
+  
+  yPos += rowHeight + 3;
+
+  // ==================== NET PAY SECTION ====================
+  const netPayHeight = 20;
+  drawRect(margin, yPos, contentWidth, netPayHeight, '#f0fdfa', borderColor);
+  
+  // Net pay label
+  addText('NET SALARY PAYABLE', margin + 5, yPos + 6, { fontSize: 9, color: lightText });
+  
+  // Net pay amount
+  addText(formatCurrency(data.salary.netPay), pageWidth - margin - 5, yPos + 8, { fontSize: 16, color: primaryColor, align: 'right', font: 'helvetica' });
+
+  // Amount in words
+  const amountWords = numberToWords(data.salary.netPay);
+  addText(amountWords, margin + 5, yPos + 16, { fontSize: 9, color: lightText });
+  
+  yPos += netPayHeight + 5;
+
+  // ==================== FOOTER ====================
+  const footerY = 280; // Fixed position near bottom
+  
+  // Computer generated notice
+  addText('This is a computer generated payslip and does not require signature.', pageWidth / 2, footerY, { fontSize: 8, color: lightText, align: 'center' });
+  
+  // Date generated and website
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  addText(`Generated on: ${today} | www.pearldental.care`, pageWidth / 2, footerY + 4, { fontSize: 7, color: lightText, align: 'center' });
+  
+  // Bottom border line
+  drawLine(margin, 292, pageWidth - margin, 292, primaryColor);
+
+  // Return as data URL
+  return doc.output('dataurlstring');
 }
 
 // Generate and download PDF
@@ -296,8 +346,13 @@ export async function downloadPayslip(data: PayslipData, filename?: string): Pro
   // Create download link
   const link = document.createElement('a');
   link.href = pdfDataUrl;
-  link.download = filename || `Payslip_${data.employee.name}_${MONTH_NAMES[data.month - 1]}_${data.year}.pdf`;
+  link.download = filename || `Payslip_${data.employee.name}_${data.month}_${data.year}.pdf`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
+
+export default {
+  generatePayslipPDF,
+  downloadPayslip
+};
