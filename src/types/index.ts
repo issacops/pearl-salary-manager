@@ -41,6 +41,7 @@ export interface PayrollHistory {
   actual_days_worked: number;
   net_pay: number;
   pdf_path: string;
+  calculation_method?: 'actual_workable_days' | 'fixed_26_days' | 'fixed_30_days' | 'total_calendar_days';
 }
 
 export interface Settings {

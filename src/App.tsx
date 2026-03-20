@@ -136,7 +136,8 @@ export default function App() {
           year: selectedYear,
           actual_days_worked: actualDaysWorked,
           net_pay: salary.netPay,
-          pdf_path: '' // PDF regenerated on demand
+          pdf_path: '', // PDF regenerated on demand
+          calculation_method: calculationMethod
         });
 
         setProgress({ current: i + 1, total: employees.length });
@@ -166,7 +167,8 @@ export default function App() {
 
     try {
       // Get calculation method and max workable days
-      const { days: maxWorkableDays } = getMaxWorkableDays(entry.month, entry.year, calculationMethod);
+      const method = entry.calculation_method || 'actual_workable_days';
+      const { days: maxWorkableDays } = getMaxWorkableDays(entry.month, entry.year, method);
       
       // Calculate salary
       const salary = calculateSalary(emp, entry.actual_days_worked, maxWorkableDays);
