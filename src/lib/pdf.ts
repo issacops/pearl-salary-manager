@@ -21,49 +21,65 @@ export interface PayslipData {
   };
 }
 
-// Indian Number to Words Conversion
+// Indian Number to Words Conversion (Lakhs & Crores)
 function numberToWords(num: number): string {
   const single = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
   const double = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const places = ['', 'Thousand', 'Lakh', 'Crore'];
+  const tens = ['', 'Ten', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-  function convert(n: number, index: number): string {
+  function convertChunk(n: number): string {
     if (n === 0) return '';
-    if (n < 10) return single[n] + ' ';
-    if (n < 20) return double[n - 10] + ' ';
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + single[n % 10] : '') + ' ';
-    return single[Math.floor(n / 100)] + ' Hundred ' + (n % 100 !== 0 ? 'and ' + convert(n % 100, 0) : '');
+    if (n < 10) return single[n];
+    if (n < 20) return double[n - 10];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + single[n % 10] : '');
+    return single[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertChunk(n % 100) : '');
   }
 
-  function getAllWords(n: number): string {
-    if (n === 0) return 'Zero';
-    let words = '';
-    let placeIndex = 0;
-    while (n > 0) {
-      const chunk = n % 100;
-      if (chunk !== 0) {
-        const chunkWords = convert(chunk, placeIndex);
-        words = chunkWords + places[placeIndex] + ' ' + words;
-      }
-      n = Math.floor(n / 100);
-      placeIndex++;
-    }
-    return words.trim();
-  }
+  if (num === 0) return 'Zero';
 
   const rupees = Math.floor(num);
   const paise = Math.round((num - rupees) * 100);
-  let result = 'Rupees ' + getAllWords(rupees);
+
+  let words = '';
+  
+  // Handle crores (7+ digits)
+  if (rupees >= 10000000) {
+    words += convertChunk(Math.floor(rupees / 10000000)) + ' Crore ';
+  }
+  // Handle lakhs (5-6 digits)
+  const lakhsPart = rupees % 10000000;
+  if (lakhsPart >= 100000) {
+    words += convertChunk(Math.floor(lakhsPart / 100000)) + ' Lakh ';
+  }
+  // Handle thousands (4 digits)
+  const thousandsPart = lakhsPart % 100000;
+  if (thousandsPart >= 1000) {
+    words += convertChunk(Math.floor(thousandsPart / 1000)) + ' Thousand ';
+  }
+  // Handle remainder (1-3 digits)
+  const remainder = thousandsPart % 1000;
+  if (remainder > 0) {
+    words += convertChunk(remainder);
+  }
+
+  let result = 'Rupees ' + words.trim();
   if (paise > 0) {
-    result += ' and ' + getAllWords(paise) + ' Paise';
+    result += ' and ' + convertChunk(paise) + ' Paise';
   }
   return result + ' Only';
 }
 
+// Truncate text to fit width
+function truncateText(text: string, maxWidth: number, fontSize: number, doc: jsPDF): string {
+  const charWidth = fontSize * 0.5;
+  const maxChars = Math.floor(maxWidth / charWidth);
+  if (text.length <= maxChars) return text;
+  return text.substring(0, maxChars - 3) + '...';
+}
+
 // Format currency
 function formatCurrency(amount: number): string {
-  return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '\u20B9' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Mask account number
@@ -73,7 +89,7 @@ function maskAccountNumber(account: string): string {
 }
 
 // Hide if empty
-function displayValue(value: string): string {
+function displayValue(value: string | undefined | null): string {
   if (!value || value === '-' || value === '') return '';
   return value;
 }
@@ -86,13 +102,13 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   });
 
   // Colors
-  const primaryColor = '#14b8a6'; // Teal from logo
-  const secondaryColor = '#f97316'; // Orange from logo
+  const primaryColor = '#14b8a6';
+  const secondaryColor = '#f97316';
   const darkText = '#0f172a';
   const lightText = '#64748b';
   const borderColor = '#e2e8f0';
 
-  const margin = 10;
+  const margin = 12;
   const pageWidth = 210;
   const contentWidth = pageWidth - (margin * 2);
   let yPos = margin;
@@ -115,7 +131,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   // Helper to draw line
   const drawLine = (x1: number, y1: number, x2: number, y2: number, color: string = borderColor) => {
     doc.setDrawColor(color);
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(0.3);
     doc.line(x1, y1, x2, y2);
   };
 
@@ -135,136 +151,129 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   const monthName = monthNames[data.month - 1] || 'Unknown';
 
   // ==================== HEADER SECTION ====================
-  // Teal header background
-  drawRect(margin, yPos, contentWidth, 22, primaryColor);
+  drawRect(margin, yPos, contentWidth, 20, primaryColor);
   
   // Logo area (left)
   try {
-    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 3, 16, 16);
+    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 2, 16, 16);
   } catch {
-    // If logo fails, show text placeholder
-    addText('PD', margin + 8, yPos + 12, { fontSize: 12, color: '#ffffff' });
+    addText('PD', margin + 8, yPos + 11, { fontSize: 12, color: '#ffffff' });
   }
   
   // Company name
-  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 8, { fontSize: 14, color: '#ffffff', font: 'helvetica' });
-  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom', margin + 22, yPos + 13, { fontSize: 7, color: '#e0f2fe' });
-  addText('Kolenchery, Ernakulam, Kerala - 682311', margin + 22, yPos + 17, { fontSize: 7, color: '#e0f2fe' });
+  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 7, { fontSize: 13, color: '#ffffff', font: 'helvetica' });
+  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom, Kolenchery', margin + 22, yPos + 11, { fontSize: 6.5, color: '#e0f2fe' });
+  addText('Ernakulam, Kerala - 682311', margin + 22, yPos + 14.5, { fontSize: 6.5, color: '#e0f2fe' });
   
   // Payslip title and date (right)
-  addText('PAYSLIP', pageWidth - margin - 5, yPos + 8, { fontSize: 16, color: '#ffffff', align: 'right', font: 'helvetica' });
-  addText(`${data.month} ${data.year}`, pageWidth - margin - 5, yPos + 15, { fontSize: 11, color: '#e0f2fe', align: 'right' });
+  addText('PAYSLIP', pageWidth - margin - 3, yPos + 7, { fontSize: 14, color: '#ffffff', align: 'right', font: 'helvetica' });
+  addText(`${monthName} ${data.year}`, pageWidth - margin - 3, yPos + 13, { fontSize: 10, color: '#e0f2fe', align: 'right' });
   
-  yPos += 24;
+  yPos += 22;
   
   // GST and contact info
-  addText(`GST: 32BJZPJ4929C1ZO | Phone: +91-7593844590, +91-7593844592`, margin, yPos, { fontSize: 8, color: lightText });
-  yPos += 5;
+  addText('GST: 32BJZPJ4929C1ZO  |  Phone: +91-7593844590, +91-7593844592  |  www.pearldental.care', margin, yPos, { fontSize: 7, color: lightText });
+  yPos += 6;
 
   // ==================== EMPLOYEE INFO SECTION ====================
-  yPos += 3;
-  drawRect(margin, yPos, contentWidth, 30, '#f0fdfa', borderColor);
+  drawRect(margin, yPos, contentWidth, 28, '#f0fdfa', borderColor);
   
   // Employee name and designation
-  addText(data.employee.name.toUpperCase(), margin + 5, yPos + 8, { fontSize: 13, color: primaryColor, font: 'helvetica' });
-  addText(data.employee.designation, margin + 5, yPos + 13, { fontSize: 10, color: lightText });
+  addText(data.employee.name.toUpperCase(), margin + 4, yPos + 7, { fontSize: 12, color: primaryColor, font: 'helvetica' });
+  addText(data.employee.designation || '', margin + 4, yPos + 12, { fontSize: 9, color: lightText });
   
-  // Employee details grid
-  let col1X = margin + 5;
-  let col2X = margin + 70;
-  let col3X = margin + 135;
-  let infoY = yPos + 20;
+  // Left column labels
+  const col1X = margin + 4;
+  const col2X = margin + 65;
+  const col3X = margin + 125;
+  let infoY = yPos + 18;
+  
+  const empNo = displayValue(data.employee.emp_no);
+  const department = displayValue(data.employee.department);
+  const dateJoined = displayValue(data.employee.date_joined);
+  const paymentMode = displayValue(data.employee.payment_mode);
+  const bankName = displayValue(data.employee.bank_name);
+  const bankAccount = displayValue(data.employee.bank_account);
+  const pan = displayValue(data.employee.pan);
+  const uan = displayValue(data.employee.uan);
   
   // Row 1
-  const empNo = data.employee.emp_no || '';
-  const department = data.employee.department || '';
-  const dateJoined = data.employee.date_joined || '';
-  const paymentMode = data.employee.payment_mode || '';
-  const bankName = data.employee.bank_name || '';
-  const bankAccount = data.employee.bank_account || '';
-  const pan = data.employee.pan || '';
-  const uan = data.employee.uan || '';
-  
-  if (displayValue(empNo)) {
-    addText('Emp ID:', col1X, infoY, { fontSize: 8, color: lightText });
-    addText(empNo, col1X + 18, infoY, { fontSize: 9, color: darkText });
+  if (empNo) {
+    addText('Emp ID:', col1X, infoY, { fontSize: 7, color: lightText });
+    addText(empNo, col1X + 14, infoY, { fontSize: 8, color: darkText });
   }
-  
-  if (displayValue(department)) {
-    addText('Department:', col2X, infoY, { fontSize: 8, color: lightText });
-    addText(department, col2X + 25, infoY, { fontSize: 9, color: darkText });
+  if (department) {
+    addText('Dept:', col2X, infoY, { fontSize: 7, color: lightText });
+    addText(department, col2X + 12, infoY, { fontSize: 8, color: darkText });
   }
-  
-  if (displayValue(dateJoined)) {
-    addText('Joined:', col3X, infoY, { fontSize: 8, color: lightText });
-    addText(dateJoined, col3X + 18, infoY, { fontSize: 9, color: darkText });
+  if (dateJoined) {
+    addText('Joined:', col3X, infoY, { fontSize: 7, color: lightText });
+    addText(dateJoined, col3X + 14, infoY, { fontSize: 8, color: darkText });
   }
   
   infoY += 5;
   
   // Row 2
-  if (displayValue(paymentMode)) {
-    addText('Payment:', col1X, infoY, { fontSize: 8, color: lightText });
-    addText(paymentMode, col1X + 18, infoY, { fontSize: 9, color: darkText });
+  if (paymentMode) {
+    addText('Payment:', col1X, infoY, { fontSize: 7, color: lightText });
+    addText(paymentMode, col1X + 16, infoY, { fontSize: 8, color: darkText });
   }
-  
-  if (displayValue(bankName)) {
-    addText('Bank:', col2X, infoY, { fontSize: 8, color: lightText });
-    addText(bankName, col2X + 18, infoY, { fontSize: 9, color: darkText });
+  if (bankName) {
+    addText('Bank:', col2X, infoY, { fontSize: 7, color: lightText });
+    addText(bankName, col2X + 12, infoY, { fontSize: 8, color: darkText });
   }
-  
-  if (displayValue(bankAccount)) {
-    addText('A/C:', col3X, infoY, { fontSize: 8, color: lightText });
-    addText(maskAccountNumber(bankAccount), col3X + 12, infoY, { fontSize: 9, color: darkText });
+  if (bankAccount) {
+    addText('A/C:', col3X, infoY, { fontSize: 7, color: lightText });
+    addText(maskAccountNumber(bankAccount), col3X + 10, infoY, { fontSize: 8, color: darkText });
   }
   
   infoY += 5;
   
   // Row 3
-  if (displayValue(pan)) {
-    addText('PAN:', col1X, infoY, { fontSize: 8, color: lightText });
-    addText(pan, col1X + 12, infoY, { fontSize: 9, color: darkText });
+  if (pan) {
+    addText('PAN:', col1X, infoY, { fontSize: 7, color: lightText });
+    addText(pan, col1X + 10, infoY, { fontSize: 8, color: darkText });
+  }
+  if (uan) {
+    addText('UAN:', col2X, infoY, { fontSize: 7, color: lightText });
+    addText(uan, col2X + 12, infoY, { fontSize: 8, color: darkText });
   }
   
-  if (displayValue(uan)) {
-    addText('UAN:', col2X, infoY, { fontSize: 8, color: lightText });
-    addText(uan, col2X + 15, infoY, { fontSize: 9, color: darkText });
-  }
-  
-  yPos += 33;
+  yPos += 30;
 
   // ==================== ATTENDANCE & PAY SUMMARY ====================
-  drawRect(margin, yPos, contentWidth, 12, '#fff7ed', borderColor);
+  drawRect(margin, yPos, contentWidth, 11, '#fff7ed', borderColor);
   
   const summaryItems = [
-    { label: 'Period:', value: `${monthName} ${data.year}` },
-    { label: 'Working Days:', value: data.attendance.maxWorkableDays.toString() },
-    { label: 'Present:', value: data.attendance.actualDaysWorked.toString() },
-    { label: 'LOP:', value: data.attendance.lossOfPayDays.toString() }
+    { label: 'Period', value: `${monthName} ${data.year}` },
+    { label: 'Working Days', value: data.attendance.maxWorkableDays.toString() },
+    { label: 'Present', value: data.attendance.actualDaysWorked.toString() },
+    { label: 'LOP', value: data.attendance.lossOfPayDays.toString() }
   ];
   
-  let summaryX = margin + 5;
+  const summaryWidth = contentWidth / 4;
   summaryItems.forEach((item, index) => {
-    if (index > 0) summaryX += 40;
-    addText(item.label, summaryX, yPos + 5, { fontSize: 8, color: lightText });
-    addText(item.value, summaryX, yPos + 10, { fontSize: 9, color: darkText });
+    const itemX = margin + (index * summaryWidth) + 3;
+    addText(item.label + ':', itemX, yPos + 4, { fontSize: 7, color: lightText });
+    addText(item.value, itemX, yPos + 8.5, { fontSize: 9, color: darkText });
   });
   
-  yPos += 14;
+  yPos += 13;
 
-  // ==================== EARNINGS & DEDUCTIONS ====================
-  const tableStartY = yPos;
+  // ==================== EARNINGS & DEDUCTIONS TABLE ====================
   const colWidth = contentWidth / 2;
-  const rowHeight = 7;
+  const rowHeight = 6.5;
+  const labelMaxWidth = 55;
+  const valueWidth = 35;
   
   // Headers
-  drawRect(margin, tableStartY, colWidth - 2, rowHeight, primaryColor);
-  drawRect(margin + colWidth, tableStartY, colWidth - 2, rowHeight, primaryColor);
+  drawRect(margin, yPos, colWidth - 1, rowHeight, primaryColor);
+  drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, secondaryColor);
   
-  addText('EARNINGS', margin + colWidth / 2 - 1, tableStartY + 5, { fontSize: 10, color: '#ffffff', align: 'center', font: 'helvetica' });
-  addText('DEDUCTIONS', margin + colWidth + colWidth / 2 - 1, tableStartY + 5, { fontSize: 10, color: '#ffffff', align: 'center', font: 'helvetica' });
+  addText('EARNINGS', margin + colWidth / 2, yPos + 4.5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
+  addText('DEDUCTIONS', margin + colWidth + colWidth / 2, yPos + 4.5, { fontSize: 9, color: '#ffffff', align: 'center', font: 'helvetica' });
   
-  yPos = tableStartY + rowHeight;
+  yPos += rowHeight;
   
   // Calculate max rows needed
   const maxRows = Math.max(data.salary.earnings.length, data.salary.deductions.length);
@@ -274,68 +283,62 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
     const bgColor = isEven ? '#ffffff' : '#f8fafc';
     
     // Earnings row
-    if (data.salary.earnings[i]) {
-      drawRect(margin, yPos, colWidth - 2, rowHeight, bgColor);
-      addText(data.salary.earnings[i].name, margin + 3, yPos + 5, { fontSize: 9, color: darkText });
-      addText(formatCurrency(data.salary.earnings[i].amount), margin + colWidth - 5, yPos + 5, { fontSize: 9, color: darkText, align: 'right' });
+    if (i < data.salary.earnings.length) {
+      drawRect(margin, yPos, colWidth - 1, rowHeight, bgColor);
+      const earnName = truncateText(data.salary.earnings[i].name, labelMaxWidth, 8, doc);
+      addText(earnName, margin + 3, yPos + 4.5, { fontSize: 8, color: darkText });
+      addText(formatCurrency(data.salary.earnings[i].amount), margin + colWidth - 4, yPos + 4.5, { fontSize: 8, color: darkText, align: 'right' });
     } else {
-      drawRect(margin, yPos, colWidth - 2, rowHeight, bgColor);
+      drawRect(margin, yPos, colWidth - 1, rowHeight, bgColor);
     }
     
     // Deductions row
-    if (data.salary.deductions[i]) {
-      drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, bgColor);
-      addText(data.salary.deductions[i].name, margin + colWidth + 3, yPos + 5, { fontSize: 9, color: darkText });
-      addText(formatCurrency(data.salary.deductions[i].amount), margin + contentWidth - 5, yPos + 5, { fontSize: 9, color: darkText, align: 'right' });
+    if (i < data.salary.deductions.length) {
+      drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, bgColor);
+      const dedName = truncateText(data.salary.deductions[i].name, labelMaxWidth, 8, doc);
+      addText(dedName, margin + colWidth + 3, yPos + 4.5, { fontSize: 8, color: darkText });
+      addText(formatCurrency(data.salary.deductions[i].amount), margin + contentWidth - 4, yPos + 4.5, { fontSize: 8, color: darkText, align: 'right' });
     } else {
-      drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, bgColor);
+      drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, bgColor);
     }
     
     yPos += rowHeight;
   }
   
   // Totals row
-  drawRect(margin, yPos, colWidth - 2, rowHeight, '#e0f2fe');
-  drawRect(margin + colWidth, yPos, colWidth - 2, rowHeight, '#fee2e2');
+  drawRect(margin, yPos, colWidth - 1, rowHeight, '#e0f2fe');
+  drawRect(margin + colWidth, yPos, colWidth - 1, rowHeight, '#fee2e2');
   
-  addText('Total Earnings', margin + 3, yPos + 5, { fontSize: 9, color: primaryColor, font: 'helvetica' });
-  addText(formatCurrency(data.salary.totalEarnings), margin + colWidth - 5, yPos + 5, { fontSize: 9, color: primaryColor, align: 'right', font: 'helvetica' });
+  addText('Total Earnings', margin + 3, yPos + 4.5, { fontSize: 8, color: primaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalEarnings), margin + colWidth - 4, yPos + 4.5, { fontSize: 8, color: primaryColor, align: 'right', font: 'helvetica' });
 
-  addText('Total Deductions', margin + colWidth + 3, yPos + 5, { fontSize: 9, color: secondaryColor, font: 'helvetica' });
-  addText(formatCurrency(data.salary.totalDeductions), margin + contentWidth - 5, yPos + 5, { fontSize: 9, color: secondaryColor, align: 'right', font: 'helvetica' });
+  addText('Total Deductions', margin + colWidth + 3, yPos + 4.5, { fontSize: 8, color: secondaryColor, font: 'helvetica' });
+  addText(formatCurrency(data.salary.totalDeductions), margin + contentWidth - 4, yPos + 4.5, { fontSize: 8, color: secondaryColor, align: 'right', font: 'helvetica' });
   
   yPos += rowHeight + 3;
 
   // ==================== NET PAY SECTION ====================
-  const netPayHeight = 20;
+  const netPayHeight = 18;
   drawRect(margin, yPos, contentWidth, netPayHeight, '#f0fdfa', borderColor);
   
-  // Net pay label
-  addText('NET SALARY PAYABLE', margin + 5, yPos + 6, { fontSize: 9, color: lightText });
-  
-  // Net pay amount
-  addText(formatCurrency(data.salary.netPay), pageWidth - margin - 5, yPos + 8, { fontSize: 16, color: primaryColor, align: 'right', font: 'helvetica' });
+  addText('NET SALARY PAYABLE', margin + 4, yPos + 5, { fontSize: 8, color: lightText });
+  addText(formatCurrency(data.salary.netPay), pageWidth - margin - 4, yPos + 7, { fontSize: 14, color: primaryColor, align: 'right', font: 'helvetica' });
 
-  // Amount in words
   const amountWords = numberToWords(data.salary.netPay);
-  addText(amountWords, margin + 5, yPos + 16, { fontSize: 9, color: lightText });
+  addText(amountWords, margin + 4, yPos + 13, { fontSize: 8, color: lightText });
   
-  yPos += netPayHeight + 5;
+  yPos += netPayHeight + 6;
 
   // ==================== FOOTER ====================
-  const footerY = 280; // Fixed position near bottom
+  const footerY = 275;
   
-  // Computer generated notice
-  addText('This is a computer generated payslip and does not require signature.', pageWidth / 2, footerY, { fontSize: 8, color: lightText, align: 'center' });
+  drawLine(margin, footerY - 2, pageWidth - margin, footerY - 2, primaryColor);
   
-  // Date generated and website
+  addText('This is a computer generated payslip and does not require signature.', pageWidth / 2, footerY + 2, { fontSize: 7, color: lightText, align: 'center' });
+  
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  addText(`Generated on: ${today} | www.pearldental.care`, pageWidth / 2, footerY + 4, { fontSize: 7, color: lightText, align: 'center' });
-  
-  // Bottom border line
-  drawLine(margin, 292, pageWidth - margin, 292, primaryColor);
+  addText(`Generated on: ${today}  |  www.pearldental.care`, pageWidth / 2, footerY + 6, { fontSize: 7, color: lightText, align: 'center' });
 
-  // Return as data URL
   return doc.output('dataurlstring');
 }
 
@@ -343,7 +346,6 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
 export async function downloadPayslip(data: PayslipData, filename?: string): Promise<void> {
   const pdfDataUrl = await generatePayslipPDF(data);
   
-  // Create download link
   const link = document.createElement('a');
   link.href = pdfDataUrl;
   link.download = filename || `Payslip_${data.employee.name}_${data.month}_${data.year}.pdf`;
