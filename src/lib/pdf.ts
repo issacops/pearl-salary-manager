@@ -139,25 +139,28 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   const monthName = monthNames[data.month - 1] || 'Unknown';
 
   // ==================== HEADER SECTION ====================
-  drawRect(margin, yPos, contentWidth, 22, primaryColor);
+  drawRect(margin, yPos, contentWidth, 24, primaryColor);
   
-  // Logo area (left)
+  // Logo area (left) - maintain aspect ratio (logo is ~3:1 width:height)
+  const logoWidth = 48; // mm - wider to match aspect ratio
+  const logoHeight = 16; // mm
   try {
-    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 3, 16, 16);
+    doc.addImage('/logo.png', 'PNG', margin + 3, yPos + 4, logoWidth, logoHeight);
   } catch {
-    addText('PD', margin + 8, yPos + 12, { fontSize: 12, color: '#ffffff' });
+    addText('PD', margin + 8, yPos + 13, { fontSize: 12, color: '#ffffff' });
   }
   
-  // Company name
-  addText('PEARL DENTAL SOLUTIONS', margin + 22, yPos + 8, { fontSize: 12, color: '#ffffff', font: 'helvetica' });
-  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom, Kolenchery', margin + 22, yPos + 13, { fontSize: 6.5, color: '#e0f2fe' });
-  addText('Ernakulam, Kerala - 682311', margin + 22, yPos + 17, { fontSize: 6.5, color: '#e0f2fe' });
+  // Company name (positioned to the right of logo)
+  const textStartX = margin + 3 + logoWidth + 5;
+  addText('PEARL DENTAL SOLUTIONS', textStartX, yPos + 9, { fontSize: 12, color: '#ffffff', font: 'helvetica' });
+  addText('Building no. IX/105, Kinginimattom (PO) Palackamttom, Kolenchery', textStartX, yPos + 14, { fontSize: 6.5, color: '#e0f2fe' });
+  addText('Ernakulam, Kerala - 682311', textStartX, yPos + 18, { fontSize: 6.5, color: '#e0f2fe' });
   
   // Payslip title and date (right)
-  addText('PAYSLIP', pageWidth - margin - 3, yPos + 8, { fontSize: 14, color: '#ffffff', align: 'right', font: 'helvetica' });
-  addText(monthName + ' ' + data.year, pageWidth - margin - 3, yPos + 15, { fontSize: 10, color: '#e0f2fe', align: 'right' });
+  addText('PAYSLIP', pageWidth - margin - 3, yPos + 9, { fontSize: 14, color: '#ffffff', align: 'right', font: 'helvetica' });
+  addText(monthName + ' ' + data.year, pageWidth - margin - 3, yPos + 16, { fontSize: 10, color: '#e0f2fe', align: 'right' });
   
-  yPos += 24;
+  yPos += 26;
   
   // GST and contact info bar
   addText('GST: 32BJZPJ4929C1ZO   |   Phone: +91-7593844590, +91-7593844592   |   www.pearldental.care', margin + 2, yPos, { fontSize: 7, color: lightText });
