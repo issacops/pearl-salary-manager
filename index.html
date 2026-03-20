@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Pearl Dental Solutions - Salary & Payroll Management System</title>
+    <meta name="title" content="Pearl Dental Solutions - Salary & Payroll Management System" />
+    <meta name="description" content="Professional payroll management system for Pearl Dental Solutions. Generate payslips, manage employee salaries, and track payroll history with ease." />
+    <meta name="keywords" content="payroll, salary, dental clinic, employee management, payslip generator, India payroll" />
+    <meta name="author" content="Pearl Dental Solutions" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pearl Dental Solutions - Salary & Payroll Management System" />
+    <meta property="og:description" content="Professional payroll management system for dental clinics. Generate professional payslips and manage employee salaries." />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Pearl Dental Solutions - Salary & Payroll Management System" />
+    <meta property="twitter:description" content="Professional payroll management system for dental clinics. Generate professional payslips and manage employee salaries." />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦷</text></svg>" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="msapplication-TileColor" content="#4f46e5" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Inline Critical CSS for faster load -->
+    <style>
+      /* Prevent FOUC */
+      html { background-color: #f8fafc; }
+      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+      /* Loading state */
+      .initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        z-index: 9999;
+      }
+      .initial-loader-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #4f46e5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Initial loader to prevent FOUC -->
+      <div class="initial-loader">
+        <div class="initial-loader-spinner"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
