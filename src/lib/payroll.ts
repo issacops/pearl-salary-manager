@@ -59,21 +59,23 @@ export function calculateSalary(
   if (prorationFactor > 1) prorationFactor = 1;
   if (prorationFactor < 0) prorationFactor = 0;
 
-  // Earnings
-  const proratedBasic = employee.basic_salary * prorationFactor;
-  const proratedHra = employee.hra * prorationFactor;
-  const proratedConveyance = employee.conveyance * prorationFactor;
-  const proratedMedical = employee.medical * prorationFactor;
-  const proratedSpecial = employee.special_allowance * prorationFactor;
-  const proratedLta = (employee.lta || 0) * prorationFactor;
+  // Calculate LOP days and amount
+  const lossOfPayDays = Math.max(0, maxWorkableDays - actualDaysWorked);
+  const grossSalary = employee.target_gross_salary || (
+    employee.basic_salary + employee.hra + employee.conveyance + 
+    employee.medical + employee.special_allowance + (employee.lta || 0)
+  );
+  const dailyWage = grossSalary / maxWorkableDays;
+  const lopAmount = dailyWage * lossOfPayDays;
 
+  // Earnings (show full amounts, not prorated)
   const earnings: { name: string; amount: number }[] = [
-    { name: 'Basic Salary', amount: proratedBasic },
-    { name: 'House Rent Allowance (HRA)', amount: proratedHra },
-    { name: 'Conveyance Allowance', amount: proratedConveyance },
-    { name: 'Medical Allowance', amount: proratedMedical },
-    { name: 'Leave Travel Allowance (LTA)', amount: proratedLta },
-    { name: 'Special Allowance', amount: proratedSpecial }
+    { name: 'Basic Salary', amount: employee.basic_salary },
+    { name: 'House Rent Allowance (HRA)', amount: employee.hra },
+    { name: 'Conveyance Allowance', amount: employee.conveyance },
+    { name: 'Medical Allowance', amount: employee.medical },
+    { name: 'Leave Travel Allowance (LTA)', amount: employee.lta || 0 },
+    { name: 'Special Allowance', amount: employee.special_allowance }
   ];
 
   // Custom earnings
@@ -98,11 +100,14 @@ export function calculateSalary(
   const proratedIt = (employee.income_tax || 0) * prorationFactor;
 
   const deductions: { name: string; amount: number }[] = [
-    { name: 'PF Employee', amount: proratedPf },
-    { name: 'Employee Insurance', amount: proratedInsurance },
-    { name: 'Professional Tax', amount: proratedPt },
-    { name: 'Total Income Tax', amount: proratedIt }
+    { name: 'Loss of Pay (LOP)', amount: Math.round(lopAmount * 100) / 100 }
   ];
+
+  // Only add statutory deductions if they exist
+  if (proratedPf > 0) deductions.push({ name: 'PF Employee', amount: proratedPf });
+  if (proratedInsurance > 0) deductions.push({ name: 'Employee Insurance', amount: proratedInsurance });
+  if (proratedPt > 0) deductions.push({ name: 'Professional Tax', amount: proratedPt });
+  if (proratedIt > 0) deductions.push({ name: 'Total Income Tax', amount: proratedIt });
 
   // Custom deductions
   try {
