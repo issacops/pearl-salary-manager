@@ -26,19 +26,14 @@
     "recharts": "^3.8.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
-    "eslint": "^10.0.3",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
     "tailwindcss": "^4.1.14",
     "terser": "^5.46.1",
     "typescript": "~5.8.2",
-    "typescript-eslint": "^8.57.1",
     "vite": "^6.2.0"
   },
   "engines": {
