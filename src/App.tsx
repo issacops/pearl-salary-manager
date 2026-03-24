@@ -53,15 +53,17 @@ export default function App() {
     yearRef.current = selectedYear;
   }, [selectedMonth, selectedYear]);
 
-  // Update handlers to use refs
+  // Update handlers to sync refs with state
   const handleMonthChange = (month: number) => {
     setSelectedMonth(month);
     monthRef.current = month;
+    yearRef.current = selectedYear;
   };
 
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
     yearRef.current = year;
+    monthRef.current = selectedMonth;
   };
 
   const loadData = useCallback(() => {
