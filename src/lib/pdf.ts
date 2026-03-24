@@ -96,7 +96,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   });
 
   // Colors
-  const primaryColor = '#2dd4bf';
+  const primaryColor = '#5eead4';
   const secondaryColor = '#f97316';
   const darkText = '#1e293b';
   const lightText = '#64748b';
