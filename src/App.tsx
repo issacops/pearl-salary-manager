@@ -14,9 +14,9 @@ import {
   exportAllData,
   importData,
   getSelectedMonth,
-  setSelectedMonth,
+  setSelectedMonth as persistSelectedMonth,
   getSelectedYear,
-  setSelectedYear
+  setSelectedYear as persistSelectedYear
 } from '@/lib/store';
 import {
   calculateSalary,
@@ -324,8 +324,8 @@ export default function App() {
             onMonthYearChange={(month, year) => {
               setSelectedMonth(month);
               setSelectedYear(year);
-              setSelectedMonth(month); // Persist to localStorage
-              setSelectedYear(year);   // Persist to localStorage
+              persistSelectedMonth(month);
+              persistSelectedYear(year);
             }}
           />
         )}
@@ -346,7 +346,7 @@ export default function App() {
                     onChange={(e) => {
                       const month = Number(e.target.value);
                       setSelectedMonth(month);
-                      setSelectedMonth(month); // Persist
+                      persistSelectedMonth(month);
                     }}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
                   >
@@ -363,7 +363,7 @@ export default function App() {
                     onChange={(e) => {
                       const year = Number(e.target.value);
                       setSelectedYear(year);
-                      setSelectedYear(year); // Persist
+                      persistSelectedYear(year);
                     }}
                     min={2000}
                     max={2100}
