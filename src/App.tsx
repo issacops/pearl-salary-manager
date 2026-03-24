@@ -115,10 +115,15 @@ export default function App() {
       return;
     }
 
+    // DEBUG: Log what month/year will be used
+    console.log('DEBUG: Generate clicked - selectedMonth:', selectedMonth, 'selectedYear:', selectedYear);
+    console.log('DEBUG: MONTH_NAMES[selectedMonth-1]:', MONTH_NAMES[selectedMonth - 1]);
+
     setGenerating(true);
     setProgress({ current: 0, total: employees.length });
 
     try {
+      console.log('DEBUG: Inside try - selectedMonth:', selectedMonth, 'selectedYear:', selectedYear);
       const { days: maxWorkableDays } = getMaxWorkableDays(selectedMonth, selectedYear, calculationMethod);
       const historyEntries: Omit<PayrollHistory, 'id'>[] = [];
 
@@ -318,8 +323,10 @@ export default function App() {
             selectedMonth={selectedMonth} 
             selectedYear={selectedYear}
             onMonthYearChange={(month, year) => {
+              console.log('DEBUG: Dashboard callback - month:', month, 'year:', year);
               setSelectedMonth(month);
               setSelectedYear(year);
+              console.log('DEBUG: After setSelectedMonth, selectedMonth state is:', month);
             }}
           />
         )}
@@ -337,7 +344,10 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Month</label>
                   <select 
                     value={selectedMonth} 
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                    onChange={(e) => {
+                      console.log('DEBUG: Payroll Processing month changed to:', e.target.value);
+                      setSelectedMonth(Number(e.target.value));
+                    }}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
                   >
                     {MONTH_NAMES.map((name, i) => (
