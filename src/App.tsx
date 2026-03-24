@@ -12,7 +12,11 @@ import {
   updateSettings,
   generatePayrollHistory,
   exportAllData,
-  importData
+  importData,
+  getSelectedMonth,
+  setSelectedMonth,
+  getSelectedYear,
+  setSelectedYear
 } from '@/lib/store';
 import {
   calculateSalary,
@@ -37,9 +41,9 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  // Payroll Form State
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Payroll Form State - load from localStorage to persist across refreshes
+  const [selectedMonth, setSelectedMonth] = useState(getSelectedMonth);
+  const [selectedYear, setSelectedYear] = useState(getSelectedYear);
   const [calculationMethod, setCalculationMethod] = useState<CalculationMethod>('actual_workable_days');
   const [daysWorked, setDaysWorked] = useState<Record<number, string>>({});
 
@@ -115,15 +119,10 @@ export default function App() {
       return;
     }
 
-    // DEBUG: Log what month/year will be used
-    console.log('DEBUG: Generate clicked - selectedMonth:', selectedMonth, 'selectedYear:', selectedYear);
-    console.log('DEBUG: MONTH_NAMES[selectedMonth-1]:', MONTH_NAMES[selectedMonth - 1]);
-
     setGenerating(true);
     setProgress({ current: 0, total: employees.length });
 
     try {
-      console.log('DEBUG: Inside try - selectedMonth:', selectedMonth, 'selectedYear:', selectedYear);
       const { days: maxWorkableDays } = getMaxWorkableDays(selectedMonth, selectedYear, calculationMethod);
       const historyEntries: Omit<PayrollHistory, 'id'>[] = [];
 
@@ -323,10 +322,10 @@ export default function App() {
             selectedMonth={selectedMonth} 
             selectedYear={selectedYear}
             onMonthYearChange={(month, year) => {
-              console.log('DEBUG: Dashboard callback - month:', month, 'year:', year);
               setSelectedMonth(month);
               setSelectedYear(year);
-              console.log('DEBUG: After setSelectedMonth, selectedMonth state is:', month);
+              setSelectedMonth(month); // Persist to localStorage
+              setSelectedYear(year);   // Persist to localStorage
             }}
           />
         )}
@@ -345,8 +344,9 @@ export default function App() {
                   <select 
                     value={selectedMonth} 
                     onChange={(e) => {
-                      console.log('DEBUG: Payroll Processing month changed to:', e.target.value);
-                      setSelectedMonth(Number(e.target.value));
+                      const month = Number(e.target.value);
+                      setSelectedMonth(month);
+                      setSelectedMonth(month); // Persist
                     }}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
                   >
@@ -360,7 +360,11 @@ export default function App() {
                   <input 
                     type="number" 
                     value={selectedYear} 
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    onChange={(e) => {
+                      const year = Number(e.target.value);
+                      setSelectedYear(year);
+                      setSelectedYear(year); // Persist
+                    }}
                     min={2000}
                     max={2100}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"

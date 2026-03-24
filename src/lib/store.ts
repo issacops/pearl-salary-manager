@@ -8,7 +8,9 @@ const STORAGE_KEYS = {
   HISTORY: 'pearl_dental_history',
   SETTINGS: 'pearl_dental_settings',
   INITIALIZED: 'pearl_dental_initialized',
-  HISTORY_COUNTER: 'pearl_dental_history_counter'
+  HISTORY_COUNTER: 'pearl_dental_history_counter',
+  SELECTED_MONTH: 'pearl_dental_selected_month',
+  SELECTED_YEAR: 'pearl_dental_selected_year'
 } as const;
 
 function getItem<T>(key: string, defaultValue: T): T {
@@ -129,6 +131,23 @@ export function generatePayrollHistory(
   setItem(STORAGE_KEYS.HISTORY_COUNTER, counter + entries.length);
   
   return newEntries;
+}
+
+// Selected period persistence
+export function getSelectedMonth(): number {
+  return getItem<number>(STORAGE_KEYS.SELECTED_MONTH, new Date().getMonth() + 1);
+}
+
+export function setSelectedMonth(month: number): void {
+  setItem(STORAGE_KEYS.SELECTED_MONTH, month);
+}
+
+export function getSelectedYear(): number {
+  return getItem<number>(STORAGE_KEYS.SELECTED_YEAR, new Date().getFullYear());
+}
+
+export function setSelectedYear(year: number): void {
+  setItem(STORAGE_KEYS.SELECTED_YEAR, year);
 }
 
 // Export data for backup

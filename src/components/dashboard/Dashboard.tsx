@@ -87,10 +87,7 @@ export function Dashboard({ className = '', selectedMonth, selectedYear, onMonth
         <div className="flex items-center gap-3">
           <select
             value={selectedMonth}
-            onChange={(e) => {
-              console.log('DEBUG: Dashboard month selector changed to:', e.target.value, 'selectedYear:', selectedYear);
-              onMonthYearChange(Number(e.target.value), selectedYear);
-            }}
+            onChange={(e) => onMonthYearChange(Number(e.target.value), selectedYear)}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {MONTHS.map((month, index) => (
