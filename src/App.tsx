@@ -314,7 +314,14 @@ export default function App() {
         
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
-          <Dashboard />
+          <Dashboard 
+            selectedMonth={selectedMonth} 
+            selectedYear={selectedYear}
+            onMonthYearChange={(month, year) => {
+              setSelectedMonth(month);
+              setSelectedYear(year);
+            }}
+          />
         )}
 
         {/* Payroll Processing Tab */}

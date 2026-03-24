@@ -21,12 +21,13 @@ const MONTHS = [
 
 interface DashboardProps {
   className?: string;
+  selectedMonth: number;
+  selectedYear: number;
+  onMonthYearChange: (month: number, year: number) => void;
 }
 
-export function Dashboard({ className = '' }: DashboardProps) {
+export function Dashboard({ className = '', selectedMonth, selectedYear, onMonthYearChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [refreshKey, setRefreshKey] = useState(0);
 
   const data = useMemo(() => {
@@ -39,6 +40,14 @@ export function Dashboard({ className = '' }: DashboardProps) {
 
   const handleRefresh = () => {
     setRefreshKey(k => k + 1);
+  };
+
+  const handleMonthChange = (month: number) => {
+    onMonthYearChange(month, selectedYear);
+  };
+
+  const handleYearChange = (year: number) => {
+    onMonthYearChange(selectedMonth, year);
   };
 
   const renderTab = () => {
@@ -86,7 +95,7 @@ export function Dashboard({ className = '' }: DashboardProps) {
         <div className="flex items-center gap-3">
           <select
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            onChange={(e) => handleMonthChange(Number(e.target.value))}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {MONTHS.map((month, index) => (
@@ -95,7 +104,7 @@ export function Dashboard({ className = '' }: DashboardProps) {
           </select>
           <select
             value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            onChange={(e) => handleYearChange(Number(e.target.value))}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {[2024, 2025, 2026].map(year => (
