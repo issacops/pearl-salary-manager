@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, FileText, History, Save, Calculator, Download, X, Plus, Trash2, Settings as SettingsIcon, RefreshCw, LayoutDashboard } from 'lucide-react';
 import { Employee, Settings as SettingsType, PayrollHistory, CustomItem, DEFAULT_SETTINGS } from '@/types';
 import {
@@ -46,6 +46,29 @@ export default function App() {
   const [selectedYear, setSelectedYear] = useState(getSelectedYear);
   const [calculationMethod, setCalculationMethod] = useState<CalculationMethod>('actual_workable_days');
   const [daysWorked, setDaysWorked] = useState<Record<number, string>>({});
+
+  // REFS to avoid stale closures - always have current values
+  const selectedMonthRef = useRef(selectedMonth);
+  const selectedYearRef = useRef(selectedYear);
+  const calculationMethodRef = useRef(calculationMethod);
+  const daysWorkedRef = useRef(daysWorked);
+
+  // Sync refs with state
+  useEffect(() => {
+    selectedMonthRef.current = selectedMonth;
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    selectedYearRef.current = selectedYear;
+  }, [selectedYear]);
+
+  useEffect(() => {
+    calculationMethodRef.current = calculationMethod;
+  }, [calculationMethod]);
+
+  useEffect(() => {
+    daysWorkedRef.current = daysWorked;
+  }, [daysWorked]);
 
   const loadData = useCallback(() => {
     initializeStore();
@@ -119,16 +142,22 @@ export default function App() {
       return;
     }
 
+    // Use refs to get current values (avoid stale closures)
+    const currentMonth = selectedMonthRef.current;
+    const currentYear = selectedYearRef.current;
+    const currentMethod = calculationMethodRef.current;
+    const currentDaysWorked = daysWorkedRef.current;
+
     setGenerating(true);
     setProgress({ current: 0, total: employees.length });
 
     try {
-      const { days: maxWorkableDays } = getMaxWorkableDays(selectedMonth, selectedYear, calculationMethod);
+      const { days: maxWorkableDays } = getMaxWorkableDays(currentMonth, currentYear, currentMethod);
       const historyEntries: Omit<PayrollHistory, 'id'>[] = [];
 
       for (let i = 0; i < employees.length; i++) {
         const emp = employees[i];
-        const actualDaysWorked = parseFloat(daysWorked[emp.id] || '0') || 0;
+        const actualDaysWorked = parseFloat(currentDaysWorked[emp.id] || '0') || 0;
         const salary = calculateSalary(emp, actualDaysWorked, maxWorkableDays);
 
         // Store minimal data - PDF will be regenerated on download
@@ -136,12 +165,12 @@ export default function App() {
           employee_id: emp.id,
           name: emp.name,
           designation: emp.designation,
-          month: selectedMonth,
-          year: selectedYear,
+          month: currentMonth,
+          year: currentYear,
           actual_days_worked: actualDaysWorked,
           net_pay: salary.netPay,
           pdf_path: '', // PDF regenerated on demand
-          calculation_method: calculationMethod
+          calculation_method: currentMethod
         });
 
         setProgress({ current: i + 1, total: employees.length });
@@ -374,7 +403,11 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Calculation Method</label>
                   <select 
                     value={calculationMethod} 
-                    onChange={(e) => setCalculationMethod(e.target.value as CalculationMethod)}
+                    onChange={(e) => {
+                      const method = e.target.value as CalculationMethod;
+                      setCalculationMethod(method);
+                      calculationMethodRef.current = method;
+                    }}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
                   >
                     <option value="actual_workable_days">Actual Workable Days (Excl. Sundays)</option>
@@ -449,7 +482,11 @@ export default function App() {
                               min="0"
                               max="31"
                               value={daysWorked[emp.id] || ''}
-                              onChange={(e) => setDaysWorked({...daysWorked, [emp.id]: e.target.value})}
+                              onChange={(e) => {
+                                const newDaysWorked = {...daysWorked, [emp.id]: e.target.value};
+                                setDaysWorked(newDaysWorked);
+                                daysWorkedRef.current = newDaysWorked;
+                              }}
                               placeholder="Days"
                               className="w-24 rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border text-right ml-auto block"
                             />
