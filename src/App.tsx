@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Users, FileText, History, Save, Calculator, Download, X, Plus, Trash2, Settings as SettingsIcon, RefreshCw, LayoutDashboard } from 'lucide-react';
 import { Employee, Settings as SettingsType, PayrollHistory, CustomItem, DEFAULT_SETTINGS } from '@/types';
 import {
@@ -42,29 +42,6 @@ export default function App() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [calculationMethod, setCalculationMethod] = useState<CalculationMethod>('actual_workable_days');
   const [daysWorked, setDaysWorked] = useState<Record<number, string>>({});
-
-  // Refs to always have current month/year (avoid closure issues)
-  const monthRef = useRef(selectedMonth);
-  const yearRef = useRef(selectedYear);
-
-  // Sync refs with state
-  useEffect(() => {
-    monthRef.current = selectedMonth;
-    yearRef.current = selectedYear;
-  }, [selectedMonth, selectedYear]);
-
-  // Update handlers to sync refs with state
-  const handleMonthChange = (month: number) => {
-    setSelectedMonth(month);
-    monthRef.current = month;
-    yearRef.current = selectedYear;
-  };
-
-  const handleYearChange = (year: number) => {
-    setSelectedYear(year);
-    yearRef.current = year;
-    monthRef.current = selectedMonth;
-  };
 
   const loadData = useCallback(() => {
     initializeStore();
@@ -141,12 +118,8 @@ export default function App() {
     setGenerating(true);
     setProgress({ current: 0, total: employees.length });
 
-    // Use refs to get current month/year
-    const currentMonth = monthRef.current;
-    const currentYear = yearRef.current;
-
     try {
-      const { days: maxWorkableDays } = getMaxWorkableDays(currentMonth, currentYear, calculationMethod);
+      const { days: maxWorkableDays } = getMaxWorkableDays(selectedMonth, selectedYear, calculationMethod);
       const historyEntries: Omit<PayrollHistory, 'id'>[] = [];
 
       for (let i = 0; i < employees.length; i++) {
@@ -159,8 +132,8 @@ export default function App() {
           employee_id: emp.id,
           name: emp.name,
           designation: emp.designation,
-          month: currentMonth,
-          year: currentYear,
+          month: selectedMonth,
+          year: selectedYear,
           actual_days_worked: actualDaysWorked,
           net_pay: salary.netPay,
           pdf_path: '', // PDF regenerated on demand
@@ -347,8 +320,6 @@ export default function App() {
             onMonthYearChange={(month, year) => {
               setSelectedMonth(month);
               setSelectedYear(year);
-              monthRef.current = month;
-              yearRef.current = year;
             }}
           />
         )}
@@ -366,7 +337,7 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Month</label>
                   <select 
                     value={selectedMonth} 
-                    onChange={(e) => handleMonthChange(Number(e.target.value))}
+                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"
                   >
                     {MONTH_NAMES.map((name, i) => (
@@ -379,7 +350,7 @@ export default function App() {
                   <input 
                     type="number" 
                     value={selectedYear} 
-                    onChange={(e) => handleYearChange(Number(e.target.value))}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
                     min={2000}
                     max={2100}
                     className="w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5 border bg-white"

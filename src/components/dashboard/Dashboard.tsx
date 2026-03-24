@@ -42,14 +42,6 @@ export function Dashboard({ className = '', selectedMonth, selectedYear, onMonth
     setRefreshKey(k => k + 1);
   };
 
-  const handleMonthChange = (month: number) => {
-    onMonthYearChange(month, selectedYear);
-  };
-
-  const handleYearChange = (year: number) => {
-    onMonthYearChange(selectedMonth, year);
-  };
-
   const renderTab = () => {
     const tabProps = {
       employees: data.employees,
@@ -95,7 +87,7 @@ export function Dashboard({ className = '', selectedMonth, selectedYear, onMonth
         <div className="flex items-center gap-3">
           <select
             value={selectedMonth}
-            onChange={(e) => handleMonthChange(Number(e.target.value))}
+            onChange={(e) => onMonthYearChange(Number(e.target.value), selectedYear)}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {MONTHS.map((month, index) => (
@@ -104,7 +96,7 @@ export function Dashboard({ className = '', selectedMonth, selectedYear, onMonth
           </select>
           <select
             value={selectedYear}
-            onChange={(e) => handleYearChange(Number(e.target.value))}
+            onChange={(e) => onMonthYearChange(selectedMonth, Number(e.target.value))}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {[2024, 2025, 2026].map(year => (
