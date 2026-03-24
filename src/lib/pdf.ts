@@ -96,7 +96,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   });
 
   // Colors
-  const primaryColor = '#14b8a6';
+  const primaryColor = '#2dd4bf';
   const secondaryColor = '#f97316';
   const darkText = '#1e293b';
   const lightText = '#64748b';
@@ -163,7 +163,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<string> {
   yPos += 26;
   
   // GST and contact info bar
-  addText('GST: 32BJZPJ4929C1ZO   |   Phone: +91-7593844590, +91-7593844592   |   www.pearldental.care', margin + 2, yPos, { fontSize: 7, color: lightText });
+  addText('GST: 32BJZPJ4929C1Z0   |   Phone: +91-7593844590, +91-7593844592   |   www.pearldental.care', margin + 2, yPos, { fontSize: 7, color: lightText });
   yPos += 6;
 
   // ==================== EMPLOYEE INFO SECTION ====================
